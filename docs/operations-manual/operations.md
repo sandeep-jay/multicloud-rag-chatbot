@@ -44,6 +44,20 @@ psql -h localhost -U chatbot -d chatbot_dev -f /tmp/chatbot_dev_pre_docker.sql
 
 `docker compose --env-file /dev/null down` stops the database while preserving the named `pgdata` volume. Use `docker compose --env-file /dev/null down -v` only when you intentionally want to delete local database state. The explicit empty env file keeps Docker Compose from parsing the app `.env`; the backend still reads `.env` normally.
 
+
+## RAG cloud providers
+
+Select LLM and retriever backends independently via `.env` (see `.env.example`):
+
+| Stack | `LLM_PROVIDER` | `RETRIEVER_PROVIDER` | Key settings |
+|-------|----------------|----------------------|--------------|
+| Mock (CI / local demo) | `mock` | `mock` | Defaults; or `RAG_FORCE_MOCK=true` |
+| AWS | `aws` | `aws` | `AWS_REGION`, `BEDROCK_MODEL_ID`, `BEDROCK_KNOWLEDGE_BASE_ID` (§5) |
+| Azure | `azure` | `azure` | `AZURE_OPENAI_*`, `AZURE_SEARCH_*` (§6) |
+| GCP | `gcp` | `gcp` | `GCP_PROJECT_ID`, `GCP_LLM_MODEL`, `VERTEX_SEARCH_DATA_STORE_ID` (§6b) |
+
+Mixed stacks are supported (e.g. `LLM_PROVIDER=aws` with `RETRIEVER_PROVIDER=azure`). Placeholder KB/datastore IDs fall back to mock providers. Restart the API after changing provider env vars.
+
 ## Database migration workflow (Alembic)
 
 Alembic scaffolding is included (`alembic.ini`, `backend/alembic/`).

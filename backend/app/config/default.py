@@ -129,7 +129,7 @@ class DefaultSettings(BaseSettings):
     METADATA_FILTER_CLIENT_ENABLED: bool = False
     METADATA_FILTER_CLIENT_JSON: str | None = None
 
-    # Provider selection (mock | aws | azure); RAG_FORCE_MOCK overrides all
+    # Provider selection (mock | aws | azure | gcp); RAG_FORCE_MOCK overrides all
     RAG_FORCE_MOCK: bool = False
     RAG_PROVIDER: str | None = None  # single shortcut for both LLM and retriever
     LLM_PROVIDER: str = 'mock'
@@ -179,6 +179,14 @@ class DefaultSettings(BaseSettings):
     AZURE_SEARCH_KEY: SecretStr | None = None
     AZURE_SEARCH_INDEX: str | None = None
     AZURE_SEARCH_VECTOR_FIELD: str = 'text_vector'
+
+    # GCP / Vertex AI (optional — for LLM_PROVIDER=gcp or RETRIEVER_PROVIDER=gcp)
+    GCP_PROJECT_ID: str | None = None
+    GCP_LOCATION: str = 'us-central1'
+    GCP_LLM_MODEL: str | None = None
+    VERTEX_SEARCH_LOCATION: str = 'global'
+    VERTEX_SEARCH_DATA_STORE_ID: str | None = None
+    VERTEX_SEARCH_FILTER: str | None = None
 
     # Helpdesk agent (post-RAG escalation: summarize + file GitHub issue).
     # Disabled by default; enabling requires GITHUB_TOKEN + GITHUB_REPO.

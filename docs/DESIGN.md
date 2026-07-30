@@ -89,11 +89,13 @@ retrieve node → Bedrock KB API → OpenSearch Serverless index
 
 **Azure stack:** **Azure AI Search** fills the same role (no OpenSearch)—`RETRIEVER_PROVIDER=azure`.
 
+**GCP stack:** **Vertex AI Search** (Discovery Engine) fills the same role—`RETRIEVER_PROVIDER=gcp`. Gemini on Vertex AI is selected via `LLM_PROVIDER=gcp`.
+
 **Rationale:** v1 (upstream chabot) coupled the app to OpenSearch queries. v2 keeps OpenSearch in the platform architecture but uses the KB API so ingestion, index policies, and retrieve semantics stay managed by AWS—one retriever interface in the provider registry for both clouds.
 
 **Code:** `backend/app/services/providers/retriever/aws.py`, `backend/app/services/retrieval.py` (metadata filters).
 
-**Code (registry):** `backend/app/services/providers/` (AWS/Azure/mock).
+**Code (registry):** `backend/app/services/providers/` (AWS/Azure/GCP/mock).
 
 ---
 
@@ -112,7 +114,7 @@ This is intentionally different from AWS Bedrock Knowledge Base: Azure gives the
 
 ### Provider registry (LLM + retriever)
 
-`LLM_PROVIDER` and `RETRIEVER_PROVIDER` select `aws`, `azure`, or `mock` implementations. `RAG_FORCE_MOCK=true` forces mock for demos and CI.
+`LLM_PROVIDER` and `RETRIEVER_PROVIDER` select `aws`, `azure`, `gcp`, or `mock` implementations. `RAG_FORCE_MOCK=true` forces mock for demos and CI.
 
 **Rationale:** Same API and UI across environments; tox and new contributors run without cloud credentials. Explicit env vars beat implicit “whatever is in .env” for support and docs.
 

@@ -21,7 +21,7 @@ def resolve_judge_provider() -> str:
 
 def judge_provider_configured() -> bool:
     provider = resolve_judge_provider()
-    if provider not in ('aws', 'azure'):
+    if provider not in ('aws', 'azure', 'gcp'):
         return False
     try:
         from backend.app.services.providers import get_llm_provider
@@ -33,9 +33,9 @@ def judge_provider_configured() -> bool:
 
 def _require_cloud_provider() -> str:
     provider = resolve_judge_provider()
-    if provider not in ('aws', 'azure'):
+    if provider not in ('aws', 'azure', 'gcp'):
         raise ValueError(
-            f'RAGAS judge requires LLM_PROVIDER or RAGAS_LLM_PROVIDER to be aws or azure (got {provider!r}).',
+            f'RAGAS judge requires LLM_PROVIDER or RAGAS_LLM_PROVIDER to be aws, azure, or gcp (got {provider!r}).',
         )
     return provider
 
@@ -48,7 +48,7 @@ def get_ragas_judge_llm():
 
     provider = get_llm_provider()
     if provider.is_mock:
-        raise ValueError('RAGAS judge LLM is mock — configure aws/azure credentials and LLM_PROVIDER.')
+        raise ValueError('RAGAS judge LLM is mock — configure aws/azure/gcp credentials and LLM_PROVIDER.')
     return provider.get_streaming_llm()
 
 
@@ -66,7 +66,16 @@ def get_ragas_judge_embeddings():
             api_key=(settings.AZURE_OPENAI_API_KEY.get_secret_value() if settings.AZURE_OPENAI_API_KEY else None),
             api_version=settings.AZURE_OPENAI_API_VERSION,
         )
-    from langchain_aws import BedrockEmbeddings
+    if provider == 'gcp':
+        from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
+        return GoogleGenerativeAIEmbeddings(
+            model='text-embedding-005',
+            project=settings.GCP_PROJECT_ID,
+            location=getattr(settings, 'GCP_LOCATION', 'us-central1'),
+            vertexai=True,
+        )
+        from langchain_aws import BedrockEmbeddings
 
     model_id = getattr(settings, 'BEDROCK_EMBEDDING_MODEL_ID', None) or 'amazon.titan-embed-text-v1'
     return BedrockEmbeddings(
@@ -121,7 +130,7 @@ def run_ragas_evaluate(dataset, metrics):
         len(dataset),
         names,
         resolve_judge_provider(),
-        getattr(settings, 'BEDROCK_MODEL_ID', getattr(settings, 'AZURE_OPENAI_DEPLOYMENT', 'n/a')),
+        getattr(settings, 'BEDROCK_MODEL_ID', getattr(settings, 'AZURE_OPENAI_DEPLOYMENT', getattr(settings, 'GCP_LLM_MODEL', 'n/a'))),
     )
     return evaluate(
         dataset,

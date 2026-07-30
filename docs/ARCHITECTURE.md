@@ -4,7 +4,7 @@ Campus RAG Assistant is a source-reviewable AI platform for governed campus know
 cited-answer RAG path with a HITL-gated helpdesk escalation loop: when the knowledge base cannot
 resolve a question, the system can retry retrieval, use controlled web research, search GitHub issues
 for duplicates, draft a ticket, and file to GitHub only after human confirmation. The system runs
-behind one FastAPI backend and Vue 3 SPA with AWS / Azure / mock providers, RAGAS evaluation,
+behind one FastAPI backend and Vue 3 SPA with AWS / Azure / GCP / mock providers, RAGAS evaluation,
 LangSmith and Prometheus observability, CI/security gates, redaction, and responsible-AI guardrails.
 
 This page describes the current system architecture first, then keeps earlier versions as collapsed drill-downs so reviewers can understand the evolution without reconstructing the live architecture from release history.
@@ -18,9 +18,10 @@ For design goals and decision rationale, see [DESIGN.md](./DESIGN.md). For relea
 | **Client** | Vue 3 SPA is primary; Streamlit remains an optional client on the same REST API |
 | **API** | FastAPI under `/api/auth`, `/api/chat`, and `/api/helpdesk`; JWT auth in HTTP-only cookies; SSE for chat and agent status streams |
 | **RAG orchestration** | `RAG_ENGINE=chain` for token streaming and CI default; `RAG_ENGINE=langgraph` for explicit `condense -> multi_query -> retrieve -> rerank -> generate -> format` graph nodes |
-| **Providers** | Pluggable LLM and retriever registry: AWS, Azure, or mock via `LLM_PROVIDER`, `RETRIEVER_PROVIDER`, and `RAG_FORCE_MOCK` |
+| **Providers** | Pluggable LLM and retriever registry: AWS, Azure, GCP, or mock via `LLM_PROVIDER`, `RETRIEVER_PROVIDER`, and `RAG_FORCE_MOCK` |
 | **AWS retrieval** | Bedrock Knowledge Base retrieve API backed by OpenSearch Serverless; the app does not call OpenSearch directly |
 | **Azure retrieval** | Azure AI Search fills the same retriever contract for vector / hybrid search |
+| **GCP retrieval** | Vertex AI Search (Discovery Engine) managed datastore via `VertexAISearchRetriever` |
 | **Helpdesk agent** | Bounded multi-turn AGENT mode with retry-KB, web search, duplicate-issue search, draft-ticket, HITL confirm, four terminal outcomes, redaction, and Prometheus metrics |
 | **Persistence** | PostgreSQL + Alembic for application data; helpdesk agent checkpoints currently use SQLite keyed by chat session |
 | **Observability and quality** | LangSmith traces, Prometheus metrics, RAGAS baseline checks, k6 load validation, and CI mock-provider coverage |
@@ -82,7 +83,8 @@ The topology image is the reviewer map for the whole current architecture: the R
     | **Auth** | — | **JWT** in HTTP-only cookies (`/api/auth/*`) |
     | **Retrieval (AWS)** | LangChain → **OpenSearch** directly | **Bedrock Knowledge Base** API; **OpenSearch Serverless** behind the KB |
     | **Retrieval (Azure)** | — | **Azure AI Search** vector + keyword/hybrid index |
-    | **LLM** | Bedrock only | **Bedrock** or **Azure OpenAI** or **mock** via `LLM_PROVIDER` |
+    | **Retrieval (GCP)** | — | **Vertex AI Search** managed datastore (Discovery Engine) |
+    | **LLM** | Bedrock only | **Bedrock**, **Azure OpenAI**, **Vertex AI Gemini**, or **mock** via `LLM_PROVIDER` |
     | **DB** | PostgreSQL | PostgreSQL + **Alembic** |
     | **Ops** | LangSmith | LangSmith + **Prometheus** — [OPERATIONS.md — Shipped performance guardrails](operations-manual/operations.md#shipped-performance-guardrails-campus-phase-0) |
     | **Quality** | — | **RAGAS** harness, k6 load tests |
@@ -255,6 +257,26 @@ App (AzureHybridRetriever)
 
 `RETRIEVER_PROVIDER=azure` selects `AzureHybridRetriever`. Unlike the AWS path, ingestion, chunking, and index lifecycle are not abstracted by a managed retrieval API; the app issues the hybrid search and the index is populated and refreshed outside the app process.
 
+
+## GCP retrieval: Vertex AI Search
+
+On GCP, the managed retrieval path mirrors AWS Bedrock Knowledge Base: Vertex AI Search (Discovery Engine) owns ingestion, chunking, embedding, and hybrid retrieval. The app wraps `VertexAISearchRetriever` from `langchain-google-community` and normalizes result metadata to the shared `kb_*` citation schema.
+
+```text
+App (GcpSearchRetriever)
+  -> VertexAISearchRetriever (Discovery Engine search API)
+  -> metadata normalization (kb_url, kb_number, score, ...)
+```
+
+| Component | Role |
+|-----------|------|
+| **Vertex AI Search datastore** | Managed corpus: connectors, chunking, embeddings, and hybrid search |
+| **VertexAISearchRetriever** | LangChain retriever calling the Discovery Engine API (`backend/app/services/providers/retriever/gcp.py`) |
+| **GcpSearchRetriever** | Thin wrapper mapping Vertex result metadata to app citation fields |
+| **Vertex AI Gemini** | LLM provider when `LLM_PROVIDER=gcp` via `ChatGoogleGenerativeAI` (Vertex backend) |
+
+`RETRIEVER_PROVIDER=gcp` selects `GcpSearchRetriever`. Auth uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS`; configure `GCP_PROJECT_ID`, `VERTEX_SEARCH_DATA_STORE_ID`, and related vars in `.env.example` §6b.
+
 ## Backend
 
 - **Entry**: [`backend/app/main.py`](../backend/app/main.py) builds the FastAPI app; runs SQLAlchemy `create_all` only in dev/test (production uses Alembic); configures CORS, and mounts routers under `/api/auth` and `/api/chat`.
@@ -264,7 +286,7 @@ App (AzureHybridRetriever)
 - **LangGraph streaming:** When `RAG_ENGINE=langgraph`, `/api/chat/stream` emits a `status` event, runs the graph in a worker thread, then streams the buffered answer in paced chunks (not token-level Bedrock streaming). Use `RAG_ENGINE=chain` for `astream_events` TTFT.
 - **Research mode:** Optional `research_mode=web` on chat requests when `WEB_RESEARCH_ENABLED=true`; responses include `source_kind` and a web disclaimer when applicable.
 - **Singleton:** `get_rag_service()` returns one shared `RAGService` instance (thread-safe) for all chat handlers.
-- **Providers**: [`backend/app/services/providers/`](../backend/app/services/providers/) registers LLM and retriever implementations (`aws`, `azure`, `mock`) selected by `LLM_PROVIDER`, `RETRIEVER_PROVIDER`, optional `RAG_PROVIDER`, and `RAG_FORCE_MOCK`. When both `LLM_PROVIDER` and `RETRIEVER_PROVIDER` are set, they take precedence over `RAG_PROVIDER`.
+- **Providers**: [`backend/app/services/providers/`](../backend/app/services/providers/) registers LLM and retriever implementations (`aws`, `azure`, `gcp`, `mock`) selected by `LLM_PROVIDER`, `RETRIEVER_PROVIDER`, optional `RAG_PROVIDER`, and `RAG_FORCE_MOCK`. When both `LLM_PROVIDER` and `RETRIEVER_PROVIDER` are set, they take precedence over `RAG_PROVIDER`.
 
 ### Chat API surface (summary)
 

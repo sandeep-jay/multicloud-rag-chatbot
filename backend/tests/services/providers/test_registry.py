@@ -131,3 +131,33 @@ def test_decoupled_aws_llm_azure_retriever_mixed():
         m_ret.return_value = fake_ret
         assert get_llm_provider() is fake_llm
         assert get_retriever_provider() is fake_ret
+
+
+def test_gcp_provider_shortcut_when_side_vars_unset():
+    with (
+        _patch_settings(RAG_FORCE_MOCK=False, RAG_PROVIDER='gcp', LLM_PROVIDER=None, RETRIEVER_PROVIDER=None),
+        patch('backend.app.services.providers.llm.gcp.GcpLlmProvider.create_or_mock') as m_llm,
+        patch('backend.app.services.providers.retriever.gcp.GcpRetrieverProvider.create_or_mock') as m_ret,
+    ):
+        fake_llm = MagicMock()
+        fake_llm.is_mock = False
+        fake_llm.name = 'gcp'
+        fake_ret = MagicMock()
+        fake_ret.is_mock = False
+        fake_ret.name = 'gcp'
+        m_llm.return_value = fake_llm
+        m_ret.return_value = fake_ret
+        assert get_llm_provider() is fake_llm
+        assert get_retriever_provider() is fake_ret
+
+
+def test_gcp_retriever_placeholder_datastore_falls_back_to_mock():
+    with _patch_settings(
+        RAG_FORCE_MOCK=False,
+        RAG_PROVIDER=None,
+        LLM_PROVIDER='mock',
+        RETRIEVER_PROVIDER='gcp',
+        VERTEX_SEARCH_DATA_STORE_ID='your-data-store-id',
+    ):
+        p = get_retriever_provider()
+        assert isinstance(p, MockRetrieverProvider)

@@ -19,6 +19,7 @@ Edit **`[Unreleased]`** while you work. When a session is done, rename it to
 
 ## [Unreleased]
 
+- **GCP provider registry** — Added `gcp` LLM provider (`ChatGoogleGenerativeAI` on Vertex AI) and `gcp` retriever provider (`VertexAISearchRetriever` with metadata normalization). Select via `LLM_PROVIDER=gcp` / `RETRIEVER_PROVIDER=gcp` or `RAG_PROVIDER=gcp`. RAGAS judge supports `gcp` embeddings. Docs: ADR-001, ARCHITECTURE.md, DESIGN.md, OPERATIONS.md, `.env.example`.
 ### Fixed
 
 - **CI — disable scheduled live helpdesk trajectory eval.** Removed the `agent-eval-live` GitHub Actions job and the daily `schedule` trigger; live supervisor comparison remains available locally via `tox -e agent-eval-live` when AWS/LangSmith are configured.

@@ -64,7 +64,7 @@ tox -e eval
 # or: PYTHONPATH=. pytest backend/tests/eval/ -v -m slow
 ```
 
-Requires judge LLM: `OPENAI_API_KEY`, `AZURE_OPENAI_API_KEY`, or `RAGAS_LLM_PROVIDER`.
+Requires judge LLM: `RAGAS_LLM_PROVIDER` set to `aws`, `azure`, or `gcp` with matching cloud credentials.
 
 Helpdesk-agent trajectory eval is separate from RAGAS and is safe for PR CI:
 
@@ -136,7 +136,7 @@ Decision records: [ADR-005](./adr/ADR-005-bounded-helpdesk-agent.md) (original c
 
 Rebuild `golden_dataset.json` from live RAG so `ground_truth` and `contexts` match what Bedrock KB retrieval returns.
 
-**Prerequisites:** `RAG_FORCE_MOCK=false`, `LLM_PROVIDER=aws` (or azure), valid AWS credentials, `RAG_ENGINE` as used in eval (e.g. `langgraph`).
+**Prerequisites:** `RAG_FORCE_MOCK=false`, `LLM_PROVIDER=aws` (or `azure` / `gcp`), valid cloud credentials, `RAG_ENGINE` as used in eval (e.g. `langgraph`).
 
 ```bash
 ./venv/bin/python scripts/bootstrap_golden_dataset.py

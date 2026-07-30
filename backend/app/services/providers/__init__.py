@@ -62,6 +62,18 @@ def _azure_llm_factory() -> BaseLlmProvider:
     return AzureLlmProvider.create_or_mock(MockLlmProvider)
 
 
+def _gcp_llm_factory() -> BaseLlmProvider:
+    from .llm.gcp import GcpLlmProvider
+
+    return GcpLlmProvider.create_or_mock(MockLlmProvider)
+
+
+def _gcp_retriever_factory() -> BaseRetrieverProvider:
+    from .retriever.gcp import GcpRetrieverProvider
+
+    return GcpRetrieverProvider.create_or_mock(MockRetrieverProvider)
+
+
 def _azure_retriever_factory() -> BaseRetrieverProvider:
     from .retriever.azure import AzureRetrieverProvider
 
@@ -70,8 +82,10 @@ def _azure_retriever_factory() -> BaseRetrieverProvider:
 
 register_llm('aws', lambda: AwsLlmProvider.create_or_mock(MockLlmProvider))
 register_llm('azure', _azure_llm_factory)
+register_llm('gcp', _gcp_llm_factory)
 register_llm('mock', MockLlmProvider)
 
 register_retriever('aws', lambda: AwsRetrieverProvider.create_or_mock(MockRetrieverProvider))
 register_retriever('azure', _azure_retriever_factory)
+register_retriever('gcp', _gcp_retriever_factory)
 register_retriever('mock', MockRetrieverProvider)

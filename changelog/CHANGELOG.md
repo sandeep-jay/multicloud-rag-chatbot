@@ -19,6 +19,7 @@ Edit **`[Unreleased]`** while you work. When a session is done, rename it to
 
 ## [Unreleased]
 
+- **AWS Bedrock — managed KB retrieval and Claude 4.x LLM routing.** `BEDROCK_KB_TYPE=managed` omits `vectorSearchConfiguration` for Bedrock managed knowledge bases (quick-start KBs). All `anthropic.claude` inference profiles now use `ChatBedrock` (Messages API), fixing Haiku/Sonnet 4.x invoke errors.
 - **GCP provider registry** — Added `gcp` LLM provider (`ChatGoogleGenerativeAI` on Vertex AI) and `gcp` retriever provider (`VertexAISearchRetriever` with metadata normalization). Select via `LLM_PROVIDER=gcp` / `RETRIEVER_PROVIDER=gcp` or `RAG_PROVIDER=gcp`. RAGAS judge supports `gcp` embeddings. Docs: ADR-001, ARCHITECTURE.md, DESIGN.md, OPERATIONS.md, `.env.example`.
 ### Fixed
 

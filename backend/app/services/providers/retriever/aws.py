@@ -48,19 +48,24 @@ class AwsRetrieverProvider(BaseRetrieverProvider):
 
     def _build_retriever(self):
         agent_client = self._bedrock.get_agent_client()
-        vector_search_configuration = {
-            'numberOfResults': retrieval_candidate_count(),
-            'overrideSearchType': settings.RETRIEVER_SEARCH_TYPE,
+        kb_type = (getattr(settings, 'BEDROCK_KB_TYPE', 'vector') or 'vector').strip().lower()
+        retriever_kwargs = {
+            'knowledge_base_id': settings.BEDROCK_KNOWLEDGE_BASE_ID,
+            'region_name': settings.AWS_REGION,
+            'client': agent_client,
         }
-        bedrock_filter = build_bedrock_vector_filter()
-        if bedrock_filter:
-            vector_search_configuration['filter'] = bedrock_filter
-        return AmazonKnowledgeBasesRetriever(
-            knowledge_base_id=settings.BEDROCK_KNOWLEDGE_BASE_ID,
-            retrieval_config={'vectorSearchConfiguration': vector_search_configuration},
-            region_name=settings.AWS_REGION,
-            client=agent_client,
-        )
+        if kb_type != 'managed':
+            vector_search_configuration = {
+                'numberOfResults': retrieval_candidate_count(),
+                'overrideSearchType': settings.RETRIEVER_SEARCH_TYPE,
+            }
+            bedrock_filter = build_bedrock_vector_filter()
+            if bedrock_filter:
+                vector_search_configuration['filter'] = bedrock_filter
+            retriever_kwargs['retrieval_config'] = {
+                'vectorSearchConfiguration': vector_search_configuration,
+            }
+        return AmazonKnowledgeBasesRetriever(**retriever_kwargs)
 
     def get_retriever(self):
         return self._retriever

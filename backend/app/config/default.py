@@ -84,6 +84,8 @@ class DefaultSettings(BaseSettings):
     AWS_PROFILE_NAME: str | None = None  # Deprecated: Use instance profiles on EC2 instead
     BEDROCK_MODEL_ID: str = 'us.anthropic.claude-3-5-haiku-20241022-v1:0'
     BEDROCK_KNOWLEDGE_BASE_ID: str | None = None
+    # vector = custom KB with vectorSearchConfiguration; managed = Bedrock quick-start / managed KB
+    BEDROCK_KB_TYPE: str = 'vector'
     BEDROCK_EMBEDDING_MODEL_ID: str = 'amazon.titan-embed-text-v1'
 
     # LangSmith settings

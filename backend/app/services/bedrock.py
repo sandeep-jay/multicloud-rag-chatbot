@@ -189,11 +189,10 @@ class BedrockService:
             'client': self.client,
         }
 
-        # Use ChatBedrock for Claude 3 models, BedrockLLM for others
-        if 'claude-3' in self.model_id:
+        # Anthropic Claude models require the Messages API (ChatBedrock).
+        if 'anthropic.claude' in self.model_id:
             return ChatBedrock(**llm_kwargs)
-        else:
-            return BedrockLLM(**llm_kwargs)
+        return BedrockLLM(**llm_kwargs)
 
     def get_streaming_llm(self, callbacks=None, **model_kwargs):
         """LangChain Bedrock client with token streaming enabled."""
@@ -212,6 +211,6 @@ class BedrockService:
         }
         if callbacks:
             llm_kwargs['callbacks'] = callbacks
-        if 'claude-3' in self.model_id:
+        if 'anthropic.claude' in self.model_id:
             return ChatBedrock(**llm_kwargs)
         return BedrockLLM(**llm_kwargs)

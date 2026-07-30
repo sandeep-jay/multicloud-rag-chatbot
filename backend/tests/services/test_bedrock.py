@@ -77,7 +77,7 @@ def test_initialize_with_role_arn():
         patch('backend.app.services.bedrock.AWSClientService') as mock_aws_client_class,
     ):
         # Configure settings and mock
-        mock_settings.BEDROCK_MODEL_ID = 'anthropic.claude-v2'
+        mock_settings.BEDROCK_MODEL_ID = 'amazon.titan-text-express-v1'
         mock_settings.LANGCHAIN_API_KEY = None
         mock_settings.AWS_REGION = 'us-east-1'
         mock_settings.MAX_TOKENS = 750
@@ -218,12 +218,12 @@ def test_generate_text_error(mock_bedrock_client):
 
 
 def test_get_llm(mock_bedrock_client):
-    """Test get_llm method."""
+    """Non-Anthropic models use BedrockLLM."""
     with (
         patch('backend.app.services.bedrock.settings') as mock_settings,
         patch('backend.app.services.bedrock.BedrockLLM') as mock_bedrock_llm,
     ):
-        mock_settings.BEDROCK_MODEL_ID = 'anthropic.claude-v2'
+        mock_settings.BEDROCK_MODEL_ID = 'amazon.titan-text-express-v1'
         mock_settings.LANGCHAIN_API_KEY = None
         mock_settings.AWS_REGION = 'us-east-1'
         mock_settings.MAX_TOKENS = 750
@@ -251,6 +251,31 @@ def test_get_llm(mock_bedrock_client):
             client=mock_bedrock_client,
         )
         # Check that we got the mock that was returned
+        assert llm is mock_llm
+
+
+def test_get_llm_uses_chat_bedrock_for_claude(mock_bedrock_client):
+    """Anthropic Claude inference profiles use ChatBedrock (Messages API)."""
+    with (
+        patch('backend.app.services.bedrock.settings') as mock_settings,
+        patch('backend.app.services.bedrock.ChatBedrock') as mock_chat_bedrock,
+    ):
+        mock_settings.BEDROCK_MODEL_ID = 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+        mock_settings.LANGCHAIN_API_KEY = None
+        mock_settings.AWS_REGION = 'us-west-2'
+        mock_settings.MAX_TOKENS = 750
+        mock_settings.TOP_K = 10
+        mock_settings.TEMPERATURE = 0.3
+        mock_settings.RETRIEVER_NUMBER_OF_RESULTS = 6
+        mock_settings.RETRIEVER_SEARCH_TYPE = 'HYBRID'
+
+        mock_llm = MagicMock()
+        mock_chat_bedrock.return_value = mock_llm
+
+        service = BedrockService(bedrock_client=mock_bedrock_client)
+        llm = service.get_llm()
+
+        mock_chat_bedrock.assert_called_once()
         assert llm is mock_llm
 
 
